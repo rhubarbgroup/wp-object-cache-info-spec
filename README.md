@@ -1,0 +1,1 @@
+# wp-object-cache-info-spec
