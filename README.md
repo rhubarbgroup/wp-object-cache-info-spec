@@ -4,9 +4,9 @@ WordPress's [`WP_Object_Cache`](https://developer.wordpress.org/reference/classe
 
 ## Background
 
-A persistent WordPress object cache is a two-level cache. Level 1 caches items in RAM, and Level 2 caches them in a persistent backing store. Various WordPress plugins offer access to various types of backing store. The purpose of this specification is unifying the way the various plugins report their efficacy and performance.  
+A persistent WordPress object cache is a two-level cache. Level 1 caches items in RAM, and Level 2 caches them in a persistent backing store. Various WordPress plugins offer access to various types of backing store. The purpose of this specification is unifying the way the various plugins report their efficiency and performance.  
 
-The core object cache (as of WordPress 6.2, April 2023) is a single-level RAM-only cache. As the handling for each request begins, the RAM cache is empty. Operations (database retrievals and computations) during request handling place items into the cache, and when they are needed again they can be read from the cache. Each cache reading operation returns either the cached item or a false `$found`. Thus, the single-level cache's efficacy is measured by these numbers:
+The core object cache (as of WordPress 6.2, April 2023) is a single-level RAM-only cache. As the handling for each request begins, the RAM cache is empty. Operations (database retrievals and computations) during request handling place items into the cache, and when they are needed again they can be read from the cache. Each cache reading operation returns either the cached item or a false `$found`. Thus, the single-level cache's efficiency is measured by these numbers:
 
 * Found items in the cache (hits).
 * Requested items from the cache (total hits and misses).
@@ -20,7 +20,7 @@ When a plugin introduces a second level persistent cache, the Level 1 RAM cache 
 2. The item is not found in the RAM cache, but is found in the backing store. It is loaded into the RAM cache and returned to the caller: a Level 2 hit.
 3. Ihe item is not found in either cache: a Level 2 miss.
 
-When a caller stores an item in a persistent cache, the caching code stores it in the Level 1 RAM cache and writes it through to the Level 2 persistent cache. The write-through operation can be optimized away if the cached value of the stored item is already the same as the value being provided. Thus, the efficacy of the two-level cache can be measured with these numbers.
+When a caller stores an item in a persistent cache, the caching code stores it in the Level 1 RAM cache and writes it through to the Level 2 persistent cache. The write-through operation can be optimized away if the cached value of the stored item is already the same as the value being provided. Thus, the efficiency of the two-level cache can be measured with these numbers.
 
 * Found items in the Level 1 cache (cheap hits).
 * Found items in the Level 2 cache (expensive hits).
