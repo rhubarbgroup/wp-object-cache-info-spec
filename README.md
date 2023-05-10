@@ -40,18 +40,20 @@ Terminology: It uses the phrases MUST / SHOULD / MAY / SHOULD NOT / MUST NOT as 
 
 These global public functions expose WordPress object cache information.
 
-1. `wp_get_cache_config()` retrieves configuration data. 
-2. `wp_get_cache_errors()` retrieves a list of accumulated errors. 
-3. `wp_get_cache_stats()` retrieves statistics about the operation of the cache. 
-4. `wp_reset_cache_stats()` zeroes any accumulated statistics.  This function may incur IO, database lookups, or network traffic.
+1. `wp_cache_get_config()` retrieves configuration data. 
+2. `wp_cache_get_errors()` retrieves a list of accumulated errors. 
+3. `wp_cache_get_stats()` retrieves statistics about the operation of the cache. 
+4. `wp_cache_reset_stats()` zeroes any accumulated statistics.  This function may incur IO, database lookups, or network traffic.
+5. `wp_cache_get_global_groups()` returns the names of the global cache groups.
+6. `wp_cache_get_non_persistent_groups()` returns the names of the global cache groups.
 
 These functions disclose sensitive information. The information they produce MUST NOT be visible to unauthenticated users or users without administrative privilege. In multisite instances they return global information and do not depend on the current $blog_id setting.
 
-### wp_get_cache_config()
+### wp_cache_get_config()
 
-This function answers the question "what kind of cache is in use?"  A cache implementation SHOULD implement this function. If `true === function_exists( 'wp_cache_config' )` then the implementation MUST comply with this specification. 
+This function answers the question "what kind of cache is in use?"  A cache implementation SHOULD implement this function. If `true === function_exists( 'wp_cache_get_config' )` then the implementation MUST comply with this specification. 
 
-The globally defined function `wp_get_cache_config()` retrieves the configuration of the WordPress cache. It is defined as follows.
+The globally defined function `wp_cache_get_config()` retrieves the configuration of the WordPress cache. It is defined as follows.
 
 ```php
 /**
@@ -59,9 +61,9 @@ The globally defined function `wp_get_cache_config()` retrieves the configuratio
  *
  * @return array The configuration array.
  */
- function wp_get_cache_config() {
+ function wp_cache_get_config() {
    global $wp_object_cache;
-   return $wp_object_cache->wp_get_cache_config();
+   return $wp_object_cache->wp_cache_get_config();
  }
 ```
 This function SHOULD be inexpensive to call. It SHOULD require O(1) time in the number of cached items, and SHOULD NOT require establishing any sort of network connection. 
@@ -83,33 +85,34 @@ array (
 
 The `status` element contains strings such as 'connected', 'disconnected'. A null value or the string 'none' means no Level 2 cache is available. 
 
-### wp_get_cache_errors()
+### wp_cache_get_errors()
 
-A cache implementation MAY implement this function. If `true === function_exists( 'wp_get_cache_errors' )` then the implementation MUST comply with this specification. 
+A cache implementation MAY implement this function. If `true === function_exists( 'wp_cache_get_errors' )` then the implementation MUST comply with this specification. 
 
-The globally defined function `wp_get_cache_errors()` retrieves accumulated errors, if any.
+The globally defined function `wp_cache_get_errors()` retrieves accumulated errors, if any.
 
 ```php
 /**
- * Retrieve the configuration of the object cache.
+ * Retrieve object cache errors.
  *
  * @param bool $clear Clear the accumulated errors. Default true.
+ *
  * @return [WP_Error] An array of WP_Errors.
  */
- function wp_get_cache_errors( $clear = true ) {
+ function wp_cache_get_errors( $clear = true ) {
    global $wp_object_cache;
-   return $wp_object_cache->wp_get_cache_errors( $clear );
+   return $wp_object_cache->wp_cache_get_errors( $clear );
  }
 ```
 
 This function returns a (possibly empty) array containing errors accumulated by the cache implementation.
 
-If the `$clear` parameter is false, the implementation MAY retain accumulated errors. If the `$clear` paraemter is true (the default), the implementation MUST NOT retain accumulated errors.
+If the `$clear` parameter is false, the implementation MAY retain accumulated errors. If the `$clear` paraemter is true (the default), the implementation MUST NOT retain errors after returning them.
 
-### wp_get_cache_stats()
+### wp_cache_get_stats()
 
 
-The globally defined function `wp_get_cache_stats()` retrieves operational statistics from the WordPress cache. It is defined as follows.
+The globally defined function `wp_cache_get_stats()` retrieves operational statistics from the WordPress cache. It is defined as follows.
 
 ```php
 /**
@@ -117,9 +120,9 @@ The globally defined function `wp_get_cache_stats()` retrieves operational stati
  *
  * @return array The statistics.
  */
-function wp_get_cache_stats() {
+function wp_cache_get_stats() {
    global $wp_object_cache;
-   return $wp_object_cache->wp_get_cache_stats();
+   return $wp_object_cache->wp_cache_get_stats();
 }
 ```
 
@@ -128,14 +131,12 @@ The function returns an array with elements as follows.
 ```php
 array (
    '1' => array (
-       'get'  => 100,  // Total number of items requested by caller.
        'hit'  => 95,   // Total number of hits returned to caller.
        'miss' => 5,   // Total number of misses returned to caller.
     ), 
    '2' => array (
-       'get'  => 10,  // Total number of items requested by RAM cache miss.
        'hit'  => 5,   // Total number of hits returned to caller.
-       'miss' => 5,   // Total number of misses returned to calle.
+       'miss' => 5,   // Total number of misses returned to caller.
     ), 
 )
 ```
@@ -152,6 +153,21 @@ It's conceivable (if unlikely) that a cache implementation could have more than 
 
 This function MAY incur IO, database operations, or network traffic. It MAY be expensive to call.
 
+ A caller looking for a single cache-efficiency fractional number can use this expression. 
+ 
+ ```php
+ $stats[1]['hit'] / ($stats[1]['hit'] + $stats[1]['miss'])
+ ```
+ 
+ The same expression can be used to report the efficiency of the Level 2 cache.
+ 
+ To determine the Level 1 cache's ability to fulfill requests without resorting to the Level 2 cache this expression serves.
+ 
+ ```php
+ ($stats[1]['hit'] - ( $stats[2]['hit'] - $stats[2]['miss'] ) ) / ($stats[1]['hit'] + $stats[1]['miss'])
+ ```
+ 
+
 ### wp_cache_reset_stats()
 
 The globally defined `wp_cache_reset_stats()` function zeros the counters used to generate statistics. Its purpose is allowing other software to take time-bounded samples of cache statistics.
@@ -165,10 +181,45 @@ An implementation MAY define this function. If it is defined, when invoked  the 
  * @return null
  */
 function wp_cache_reset_stats() {
-   $global $wp_object_cache;
-   $wp_object_cache->wp_cache_reset_stats();
+    global $wp_object_cache;
+    $wp_object_cache->wp_cache_reset_stats();
 }
 ```
+
+### wp_cache_get_global_groups()
+
+We also need APIs to query global and non-persistent groups.
+The globally defined `wp_cache_get_global_groups()` returns the current set of global cache groups. It is defined as follows.
+
+```php
+/**
+ * Gets the list of global groups.
+ *
+ * @return [string] An array of the names of global groups.
+ */
+ function wp_cache_get_global_groups() {
+     global $wp_object_cache;
+     $wp_object_cache->wp_cache_get_global_groups();
+ } 
+```
+
+
+### wp_cache_get_non_persistent_groups()
+
+The globally defined `wp_cache_get_non_persistent_groups()` returns the current set of non-persistent cache groups. It is defined as follows.
+
+```php
+/**
+ * Gets the list of non-persistent groups, those not saved to a Level 2 cache.
+ *
+ * @return [string] An array of the names of non-persistent groups.
+ */
+ function wp_cache_get_non_persistent_groups() {
+     global $wp_object_cache;
+     $wp_object_cache->wp_cache_get_non_persistent_groups();
+ } 
+```
+
 
 ## Public functions in WP_Object_Cache class implementations.
 
