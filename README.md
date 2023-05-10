@@ -220,7 +220,6 @@ The globally defined `wp_cache_get_non_persistent_groups()` returns the current 
  } 
 ```
 
-
 ## Public functions in WP_Object_Cache class implementations.
 
 The global functions use corresponding functions in object class implementations, as shown in the preceding sections. 
